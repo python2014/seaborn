@@ -181,7 +181,7 @@ class TestKDE(object):
     kernel = "gau"
     bw = "scott"
     gridsize = 128
-    clip = (-np.inf, np.inf)
+    clip = (None, None)
     cut = 3
 
     def test_scipy_univariate_kde(self):

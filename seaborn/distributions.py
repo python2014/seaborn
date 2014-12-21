@@ -598,7 +598,7 @@ def distplot(a, bins=None, hist=True, kde=True, rug=False, fit=None,
         fit_color = fit_kws.pop("color", "#282828")
         gridsize = fit_kws.pop("gridsize", 200)
         cut = fit_kws.pop("cut", 3)
-        clip = fit_kws.pop("clip", (-np.inf, np.inf))
+        clip = fit_kws.pop("clip", (None, None))
         bw = stats.gaussian_kde(a).scotts_factor() * a.std(ddof=1)
         x = _kde_support(a, bw, gridsize, cut, clip)
         params = fit.fit(a)
@@ -625,7 +625,7 @@ def _univariate_kdeplot(data, shade, vertical, kernel, bw, gridsize, cut,
 
     # Sort out the clipping
     if clip is None:
-        clip = (-np.inf, np.inf)
+        clip = (None, None)
 
     # Calculate the KDE
     if _has_statsmodels:
@@ -690,11 +690,16 @@ def _statsmodels_univariate_kde(data, kernel, bw, gridsize, cut, clip,
     """Compute a univariate kernel density estimate using statsmodels."""
     fft = kernel == "gau"
     kde = sm.nonparametric.KDEUnivariate(data)
-    kde.fit(kernel, bw, fft, gridsize=gridsize, cut=cut, clip=clip)
+
+    # Fit the KDE model
+    kde.fit(kernel, bw, fft, gridsize=gridsize, cut=cut)
+
+    # Evaluate the KDE on the grid
+    grid = _kde_support(data, kde.bw, gridsize, cut, clip)
+    y = kde.evaluate(grid)
     if cumulative:
-        grid, y = kde.support, kde.cdf
-    else:
-        grid, y = kde.support, kde.density
+        y = np.cumsum(y)
+        y /= y.max()
     return grid, y
 
 
@@ -722,7 +727,7 @@ def _bivariate_kdeplot(x, y, filled, kernel, bw, gridsize, cut, clip, axlabel,
 
     # Determine the clipping
     if clip is None:
-        clip = [(-np.inf, np.inf), (-np.inf, np.inf)]
+        clip = [(None, None), (None, None)]
     elif np.ndim(clip) == 1:
         clip = [clip, clip]
 
@@ -828,15 +833,16 @@ def kdeplot(data, data2=None, shade=False, vertical=False, kernel="gau",
     cut : scalar, optional
         Draw the estimate to cut * bw from the extreme data points.
     clip : pair of scalars, or pair of pair of scalars, optional
-        Lower and upper bounds for datapoints used to fit KDE. Can provide
-        a pair of (low, high) bounds for bivariate plots.
+        Lower and upper bounds for the estimated KDE support. Can provide
+        a pair of (low, high) bounds for bivariate plots. Anywhere ``None``
+        is passed will use the extreme values of the individual kernels.
     legend : bool, optoinal
         If True, add a legend or label the axes when possible.
     ax : matplotlib axis, optional
         Axis to plot on, otherwise uses current axis.
     cumulative : bool
         If draw, draw the cumulative distribution estimated by the kde.
-    kwargs : other keyword arguments for plot()
+    kwargs : other keyword arguments are passed to plot() or contour{f}()
 
     Returns
     -------

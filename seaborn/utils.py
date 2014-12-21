@@ -279,8 +279,14 @@ def _set_spine_position(spine, position):
 
 def _kde_support(data, bw, gridsize, cut, clip):
     """Establish support for a kernel density estimate."""
-    support_min = max(data.min() - bw * cut, clip[0])
-    support_max = min(data.max() + bw * cut, clip[1])
+    if clip[0] is None:
+        support_min = data.min() - bw * cut
+    else:
+        support_min = clip[0]
+    if clip[1] is None:
+        support_max = data.max() + bw * cut
+    else:
+        support_max = clip[1]
     return np.linspace(support_min, support_max, gridsize)
 
 
